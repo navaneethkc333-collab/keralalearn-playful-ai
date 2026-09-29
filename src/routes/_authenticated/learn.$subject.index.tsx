@@ -1,20 +1,12 @@
-import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { subjectById, TOPICS, type SubjectId } from "@/lib/syllabus";
 import { useProfile, useAttempts } from "@/hooks/useProfile";
 import { Card } from "@/components/ui/card";
 
-export const Route = createFileRoute("/_authenticated/learn/$subject")({
+export const Route = createFileRoute("/_authenticated/learn/$subject/")({
   head: () => ({ meta: [{ title: "Topics — Vidya Kalari" }] }),
-  component: SubjectLayout,
+  component: SubjectPage,
 });
-
-function SubjectLayout() {
-  const match = useMatchRoute();
-  const { subject } = Route.useParams();
-  const isChild = match({ to: "/learn/$subject/$topic", fuzzy: false, params: { subject } as never });
-  if (isChild) return <Outlet />;
-  return <SubjectPage />;
-}
 
 function SubjectPage() {
   const { subject } = Route.useParams();
