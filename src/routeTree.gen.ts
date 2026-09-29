@@ -14,7 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedProgressRouteImport } from './routes/_authenticated/progress'
-import { Route as AuthenticatedLearnSubjectRouteImport } from './routes/_authenticated/learn.$subject'
+import { Route as AuthenticatedLearnSubjectIndexRouteImport } from './routes/_authenticated/learn.$subject.index'
 import { Route as AuthenticatedLearnSubjectTopicRouteImport } from './routes/_authenticated/learn.$subject.$topic'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,17 +41,17 @@ const AuthenticatedProgressRoute = AuthenticatedProgressRouteImport.update({
   path: '/progress',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedLearnSubjectRoute =
-  AuthenticatedLearnSubjectRouteImport.update({
-    id: '/learn/$subject',
-    path: '/learn/$subject',
+const AuthenticatedLearnSubjectIndexRoute =
+  AuthenticatedLearnSubjectIndexRouteImport.update({
+    id: '/learn/$subject/',
+    path: '/learn/$subject/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedLearnSubjectTopicRoute =
   AuthenticatedLearnSubjectTopicRouteImport.update({
-    id: '/$topic',
-    path: '/$topic',
-    getParentRoute: () => AuthenticatedLearnSubjectRoute,
+    id: '/learn/$subject/$topic',
+    path: '/learn/$subject/$topic',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -59,16 +59,16 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/progress': typeof AuthenticatedProgressRoute
-  '/learn/$subject': typeof AuthenticatedLearnSubjectRouteWithChildren
   '/learn/$subject/$topic': typeof AuthenticatedLearnSubjectTopicRoute
+  '/learn/$subject/': typeof AuthenticatedLearnSubjectIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/progress': typeof AuthenticatedProgressRoute
-  '/learn/$subject': typeof AuthenticatedLearnSubjectRouteWithChildren
   '/learn/$subject/$topic': typeof AuthenticatedLearnSubjectTopicRoute
+  '/learn/$subject': typeof AuthenticatedLearnSubjectIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -77,8 +77,8 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/progress': typeof AuthenticatedProgressRoute
-  '/_authenticated/learn/$subject': typeof AuthenticatedLearnSubjectRouteWithChildren
   '/_authenticated/learn/$subject/$topic': typeof AuthenticatedLearnSubjectTopicRoute
+  '/_authenticated/learn/$subject/': typeof AuthenticatedLearnSubjectIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,16 +87,16 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/progress'
-    | '/learn/$subject'
     | '/learn/$subject/$topic'
+    | '/learn/$subject/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/dashboard'
     | '/progress'
-    | '/learn/$subject'
     | '/learn/$subject/$topic'
+    | '/learn/$subject'
   id:
     | '__root__'
     | '/'
@@ -104,8 +104,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/progress'
-    | '/_authenticated/learn/$subject'
     | '/_authenticated/learn/$subject/$topic'
+    | '/_authenticated/learn/$subject/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -151,47 +151,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProgressRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/learn/$subject': {
-      id: '/_authenticated/learn/$subject'
+    '/_authenticated/learn/$subject/': {
+      id: '/_authenticated/learn/$subject/'
       path: '/learn/$subject'
-      fullPath: '/learn/$subject'
-      preLoaderRoute: typeof AuthenticatedLearnSubjectRouteImport
+      fullPath: '/learn/$subject/'
+      preLoaderRoute: typeof AuthenticatedLearnSubjectIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/learn/$subject/$topic': {
       id: '/_authenticated/learn/$subject/$topic'
-      path: '/$topic'
+      path: '/learn/$subject/$topic'
       fullPath: '/learn/$subject/$topic'
       preLoaderRoute: typeof AuthenticatedLearnSubjectTopicRouteImport
-      parentRoute: typeof AuthenticatedLearnSubjectRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
-interface AuthenticatedLearnSubjectRouteChildren {
-  AuthenticatedLearnSubjectTopicRoute: typeof AuthenticatedLearnSubjectTopicRoute
-}
-
-const AuthenticatedLearnSubjectRouteChildren: AuthenticatedLearnSubjectRouteChildren =
-  {
-    AuthenticatedLearnSubjectTopicRoute: AuthenticatedLearnSubjectTopicRoute,
-  }
-
-const AuthenticatedLearnSubjectRouteWithChildren =
-  AuthenticatedLearnSubjectRoute._addFileChildren(
-    AuthenticatedLearnSubjectRouteChildren,
-  )
-
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedProgressRoute: typeof AuthenticatedProgressRoute
-  AuthenticatedLearnSubjectRoute: typeof AuthenticatedLearnSubjectRouteWithChildren
+  AuthenticatedLearnSubjectTopicRoute: typeof AuthenticatedLearnSubjectTopicRoute
+  AuthenticatedLearnSubjectIndexRoute: typeof AuthenticatedLearnSubjectIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedProgressRoute: AuthenticatedProgressRoute,
-  AuthenticatedLearnSubjectRoute: AuthenticatedLearnSubjectRouteWithChildren,
+  AuthenticatedLearnSubjectTopicRoute: AuthenticatedLearnSubjectTopicRoute,
+  AuthenticatedLearnSubjectIndexRoute: AuthenticatedLearnSubjectIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
