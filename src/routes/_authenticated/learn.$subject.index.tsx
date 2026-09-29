@@ -15,7 +15,7 @@ function SubjectPage() {
   const { data: attempts = [] } = useAttempts();
   if (!s) return <p>Subject not found.</p>;
   if (!p) return <p className="text-muted-foreground">Loading…</p>;
-  const list = TOPICS[p.class_level][s.id as SubjectId];
+  const list = TOPICS[p.class_level]?.[s.id as SubjectId] ?? [];
   return (
     <div className="space-y-5">
       <Link to="/dashboard" className="text-sm font-semibold text-primary">← Back</Link>

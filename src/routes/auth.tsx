@@ -33,8 +33,8 @@ function AuthPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const username = f.username.trim().toLowerCase();
-    if (!/^[a-z0-9_]{3,20}$/.test(username)) return toast.error("Username: 3–20 letters, numbers or _");
-    if (f.password.length < 6) return toast.error("Password needs at least 6 characters");
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) { toast.error("Username: 3–20 letters, numbers or _"); return; }
+    if (f.password.length < 6) { toast.error("Password needs at least 6 characters"); return; }
     setBusy(true);
     try {
       if (mode === "signup") {

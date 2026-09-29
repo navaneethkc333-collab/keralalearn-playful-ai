@@ -36,7 +36,7 @@ function TopicPage() {
   if (last) {
     const idx = ORDER.indexOf(last.difficulty as Diff);
     const pct = last.score / last.total;
-    difficulty = ORDER[Math.max(0, Math.min(2, idx + (pct >= 0.8 ? 1 : pct < 0.5 ? -1 : 0)))];
+    difficulty = ORDER[Math.max(0, Math.min(2, idx + (pct >= 0.8 ? 1 : pct < 0.5 ? -1 : 0)))] ?? "easy";
   }
   const ctx = { classLevel: p.class_level, subject: s.name, topic, language: lang };
 
@@ -154,6 +154,7 @@ function Quiz({ ctx, difficulty, subjectId, userId }: { ctx: Ctx; difficulty: Di
   }
 
   const q = questions[i];
+  if (!q) return null;
   const answered = picked !== null;
   return (
     <Card className="rounded-3xl p-6">

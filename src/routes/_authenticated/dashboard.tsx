@@ -26,7 +26,7 @@ function Dashboard() {
   });
   if (!p) return <p className="text-muted-foreground">Loading…</p>;
   const ml = p.language === "ml";
-  const topics = TOPICS[p.class_level];
+  const topics = TOPICS[p.class_level] ?? TOPICS[1]!;
   const level = levelFromPoints(p.points);
 
   // Suggest the weakest topic
