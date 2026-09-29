@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- AI calls go to Google Gemini directly via the user's GEMINI_API_KEY in src/lib/ai.functions.ts (user chose own key over built-in AI).
+- Student login is username-only: username maps to a synthetic email `<username>@students.vidyakalari.app`, auto-confirm on (spec forbids email).
