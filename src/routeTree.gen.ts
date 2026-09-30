@@ -12,8 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedAssessmentRouteImport } from './routes/_authenticated/assessment'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedLearningRouteImport } from './routes/_authenticated/learning'
 import { Route as AuthenticatedProgressRouteImport } from './routes/_authenticated/progress'
+import { Route as AuthenticatedSkillsIndexRouteImport } from './routes/_authenticated/skills.index'
+import { Route as AuthenticatedSkillsActivityRouteImport } from './routes/_authenticated/skills.$activity'
+import { Route as AuthenticatedGameSubjectTopicRouteImport } from './routes/_authenticated/game.$subject.$topic'
 import { Route as AuthenticatedLearnSubjectIndexRouteImport } from './routes/_authenticated/learn.$subject.index'
 import { Route as AuthenticatedLearnSubjectTopicRouteImport } from './routes/_authenticated/learn.$subject.$topic'
 
@@ -31,9 +36,19 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAssessmentRoute = AuthenticatedAssessmentRouteImport.update({
+  id: '/assessment',
+  path: '/assessment',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLearningRoute = AuthenticatedLearningRouteImport.update({
+  id: '/learning',
+  path: '/learning',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProgressRoute = AuthenticatedProgressRouteImport.update({
@@ -41,6 +56,24 @@ const AuthenticatedProgressRoute = AuthenticatedProgressRouteImport.update({
   path: '/progress',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSkillsIndexRoute =
+  AuthenticatedSkillsIndexRouteImport.update({
+    id: '/skills/',
+    path: '/skills/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSkillsActivityRoute =
+  AuthenticatedSkillsActivityRouteImport.update({
+    id: '/skills/$activity',
+    path: '/skills/$activity',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedGameSubjectTopicRoute =
+  AuthenticatedGameSubjectTopicRouteImport.update({
+    id: '/game/$subject/$topic',
+    path: '/game/$subject/$topic',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLearnSubjectIndexRoute =
   AuthenticatedLearnSubjectIndexRouteImport.update({
     id: '/learn/$subject/',
@@ -57,16 +90,26 @@ const AuthenticatedLearnSubjectTopicRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/assessment': typeof AuthenticatedAssessmentRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/learning': typeof AuthenticatedLearningRoute
   '/progress': typeof AuthenticatedProgressRoute
+  '/skills/$activity': typeof AuthenticatedSkillsActivityRoute
+  '/skills/': typeof AuthenticatedSkillsIndexRoute
+  '/game/$subject/$topic': typeof AuthenticatedGameSubjectTopicRoute
   '/learn/$subject/$topic': typeof AuthenticatedLearnSubjectTopicRoute
   '/learn/$subject/': typeof AuthenticatedLearnSubjectIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/assessment': typeof AuthenticatedAssessmentRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/learning': typeof AuthenticatedLearningRoute
   '/progress': typeof AuthenticatedProgressRoute
+  '/skills/$activity': typeof AuthenticatedSkillsActivityRoute
+  '/skills': typeof AuthenticatedSkillsIndexRoute
+  '/game/$subject/$topic': typeof AuthenticatedGameSubjectTopicRoute
   '/learn/$subject/$topic': typeof AuthenticatedLearnSubjectTopicRoute
   '/learn/$subject': typeof AuthenticatedLearnSubjectIndexRoute
 }
@@ -75,8 +118,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/assessment': typeof AuthenticatedAssessmentRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/learning': typeof AuthenticatedLearningRoute
   '/_authenticated/progress': typeof AuthenticatedProgressRoute
+  '/_authenticated/skills/$activity': typeof AuthenticatedSkillsActivityRoute
+  '/_authenticated/skills/': typeof AuthenticatedSkillsIndexRoute
+  '/_authenticated/game/$subject/$topic': typeof AuthenticatedGameSubjectTopicRoute
   '/_authenticated/learn/$subject/$topic': typeof AuthenticatedLearnSubjectTopicRoute
   '/_authenticated/learn/$subject/': typeof AuthenticatedLearnSubjectIndexRoute
 }
@@ -85,16 +133,26 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/assessment'
     | '/dashboard'
+    | '/learning'
     | '/progress'
+    | '/skills/$activity'
+    | '/skills/'
+    | '/game/$subject/$topic'
     | '/learn/$subject/$topic'
     | '/learn/$subject/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/assessment'
     | '/dashboard'
+    | '/learning'
     | '/progress'
+    | '/skills/$activity'
+    | '/skills'
+    | '/game/$subject/$topic'
     | '/learn/$subject/$topic'
     | '/learn/$subject'
   id:
@@ -102,8 +160,13 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/assessment'
     | '/_authenticated/dashboard'
+    | '/_authenticated/learning'
     | '/_authenticated/progress'
+    | '/_authenticated/skills/$activity'
+    | '/_authenticated/skills/'
+    | '/_authenticated/game/$subject/$topic'
     | '/_authenticated/learn/$subject/$topic'
     | '/_authenticated/learn/$subject/'
   fileRoutesById: FileRoutesById
@@ -137,6 +200,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/assessment': {
+      id: '/_authenticated/assessment'
+      path: '/assessment'
+      fullPath: '/assessment'
+      preLoaderRoute: typeof AuthenticatedAssessmentRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -144,11 +214,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/learning': {
+      id: '/_authenticated/learning'
+      path: '/learning'
+      fullPath: '/learning'
+      preLoaderRoute: typeof AuthenticatedLearningRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/progress': {
       id: '/_authenticated/progress'
       path: '/progress'
       fullPath: '/progress'
       preLoaderRoute: typeof AuthenticatedProgressRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/skills/': {
+      id: '/_authenticated/skills/'
+      path: '/skills'
+      fullPath: '/skills/'
+      preLoaderRoute: typeof AuthenticatedSkillsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/skills/$activity': {
+      id: '/_authenticated/skills/$activity'
+      path: '/skills/$activity'
+      fullPath: '/skills/$activity'
+      preLoaderRoute: typeof AuthenticatedSkillsActivityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/game/$subject/$topic': {
+      id: '/_authenticated/game/$subject/$topic'
+      path: '/game/$subject/$topic'
+      fullPath: '/game/$subject/$topic'
+      preLoaderRoute: typeof AuthenticatedGameSubjectTopicRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/learn/$subject/': {
@@ -169,15 +267,25 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAssessmentRoute: typeof AuthenticatedAssessmentRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedLearningRoute: typeof AuthenticatedLearningRoute
   AuthenticatedProgressRoute: typeof AuthenticatedProgressRoute
+  AuthenticatedSkillsActivityRoute: typeof AuthenticatedSkillsActivityRoute
+  AuthenticatedSkillsIndexRoute: typeof AuthenticatedSkillsIndexRoute
+  AuthenticatedGameSubjectTopicRoute: typeof AuthenticatedGameSubjectTopicRoute
   AuthenticatedLearnSubjectTopicRoute: typeof AuthenticatedLearnSubjectTopicRoute
   AuthenticatedLearnSubjectIndexRoute: typeof AuthenticatedLearnSubjectIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAssessmentRoute: AuthenticatedAssessmentRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedLearningRoute: AuthenticatedLearningRoute,
   AuthenticatedProgressRoute: AuthenticatedProgressRoute,
+  AuthenticatedSkillsActivityRoute: AuthenticatedSkillsActivityRoute,
+  AuthenticatedSkillsIndexRoute: AuthenticatedSkillsIndexRoute,
+  AuthenticatedGameSubjectTopicRoute: AuthenticatedGameSubjectTopicRoute,
   AuthenticatedLearnSubjectTopicRoute: AuthenticatedLearnSubjectTopicRoute,
   AuthenticatedLearnSubjectIndexRoute: AuthenticatedLearnSubjectIndexRoute,
 }

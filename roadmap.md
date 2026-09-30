@@ -1,5 +1,9 @@
 # Roadmap
 - [x] Student login/registration (username, class, language)
-- [x] Dashboard, syllabus topics (Class 1–4), AI lessons, adaptive AI quizzes, feedback, read-aloud, progress & badges
-- [ ] Playable educational games (next round)
-- [ ] Skill development activities (next round)
+- [x] AI lessons, adaptive quizzes, read-aloud
+- [ ] New header: Subject Learning / Skill Development / Assessment / Progress (mobile bottom nav)
+- [ ] Subject Learning at /learning with Listen, Start Game, Mark as Completed
+- [ ] Playable topic game
+- [ ] Skill Development (/skills): drawing, story, poem, maths/English/Malayalam improvement, AI scoring
+- [ ] Assessment (/assessment): all subjects, AI questions, real scoring, saved
+- [ ] Progress page with real data from all modules

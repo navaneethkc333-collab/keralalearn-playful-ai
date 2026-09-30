@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      assessment_results: {
+        Row: {
+          class_level: number
+          created_at: string
+          details: Json
+          id: string
+          obtained: number
+          subject_scores: Json
+          summary: Json
+          total: number
+          user_id: string
+        }
+        Insert: {
+          class_level: number
+          created_at?: string
+          details?: Json
+          id?: string
+          obtained: number
+          subject_scores?: Json
+          summary?: Json
+          total: number
+          user_id: string
+        }
+        Update: {
+          class_level?: number
+          created_at?: string
+          details?: Json
+          id?: string
+          obtained?: number
+          subject_scores?: Json
+          summary?: Json
+          total?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      game_results: {
+        Row: {
+          created_at: string
+          difficulty: string
+          id: string
+          max_score: number
+          score: number
+          subject: string
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty: string
+          id?: string
+          max_score: number
+          score: number
+          subject: string
+          topic: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          max_score?: number
+          score?: number
+          subject?: string
+          topic?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           class_level: number
@@ -79,6 +148,66 @@ export type Database = {
           subject?: string
           topic?: string
           total?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      skill_results: {
+        Row: {
+          activity: string
+          created_at: string
+          feedback: Json
+          id: string
+          prompt: string
+          response: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          activity: string
+          created_at?: string
+          feedback?: Json
+          id?: string
+          prompt?: string
+          response?: string
+          score: number
+          user_id: string
+        }
+        Update: {
+          activity?: string
+          created_at?: string
+          feedback?: Json
+          id?: string
+          prompt?: string
+          response?: string
+          score?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      topic_completions: {
+        Row: {
+          class_level: number
+          created_at: string
+          id: string
+          subject: string
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          class_level: number
+          created_at?: string
+          id?: string
+          subject: string
+          topic: string
+          user_id: string
+        }
+        Update: {
+          class_level?: number
+          created_at?: string
+          id?: string
+          subject?: string
+          topic?: string
           user_id?: string
         }
         Relationships: []
