@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated")({
   component: () => (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 pt-6 pb-24 md:pb-8">
         <Outlet />
       </main>
     </div>
