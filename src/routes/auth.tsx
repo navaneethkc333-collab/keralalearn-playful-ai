@@ -52,7 +52,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email: toEmail(username), password: f.password });
         if (error) throw new Error("Wrong username or password");
       }
-      navigate({ to: "/dashboard" });
+      navigate({ to: "/learning" });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {

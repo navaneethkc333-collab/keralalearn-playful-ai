@@ -7,11 +7,11 @@ import { Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getLesson, generateQuiz, getFeedback, type QuizQuestion } from "@/lib/ai.functions";
 import { subjectById } from "@/lib/syllabus";
-import { useProfile, useAttempts } from "@/hooks/useProfile";
+import { useProfile, useAttempts, useCompletions, awardPoints } from "@/hooks/useProfile";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { SpeakButton } from "@/components/SpeakButton";
+import { SpeakButton, speak } from "@/components/SpeakButton";
 
 export const Route = createFileRoute("/_authenticated/learn/$subject/$topic")({
   head: ({ params }) => ({ meta: [{ title: `${params.topic} — Vidya Kalari` }] }),
@@ -26,7 +26,20 @@ function TopicPage() {
   const s = subjectById(subject);
   const { data: p } = useProfile();
   const { data: attempts = [] } = useAttempts();
+  const { data: done = [] } = useCompletions();
+  const qc = useQueryClient();
   const [tab, setTab] = useState<"lesson" | "quiz">("lesson");
+  const complete = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("topic_completions").insert({ user_id: p!.id, subject, topic, class_level: p!.class_level });
+      if (error) throw error;
+      await awardPoints(p!.id, 20);
+      qc.invalidateQueries({ queryKey: ["completions"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onSuccess: () => toast.success("Topic completed! +20 stars"),
+    onError: (e) => toast.error((e as Error).message),
+  });
   if (!p || !s) return <p className="text-muted-foreground">Loading…</p>;
   const lang = (p.language === "ml" ? "ml" : "en") as "en" | "ml";
 
@@ -44,6 +57,16 @@ function TopicPage() {
     <div className="space-y-5">
       <Link to="/learn/$subject" params={{ subject }} className="text-sm font-semibold text-primary">← {s.name}</Link>
       <h1 className="text-3xl font-bold">{s.emoji} {topic}</h1>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="lg" variant="secondary" className="rounded-full">
+          <Link to="/game/$subject/$topic" params={{ subject, topic }}>🎈 Start Game</Link>
+        </Button>
+        {done.some((c) => c.subject === subject && c.topic === topic) ? (
+          <Button size="lg" variant="outline" className="rounded-full" disabled>✅ Completed</Button>
+        ) : (
+          <Button size="lg" variant="outline" className="rounded-full" disabled={complete.isPending} onClick={() => complete.mutate()}>Mark as Completed</Button>
+        )}
+      </div>
       <div className="flex gap-2">
         <Button variant={tab === "lesson" ? "default" : "outline"} className="rounded-full" onClick={() => setTab("lesson")}>📘 Learn</Button>
         <Button variant={tab === "quiz" ? "default" : "outline"} className="rounded-full" onClick={() => setTab("quiz")}>🎯 Quiz ({difficulty})</Button>
@@ -70,7 +93,7 @@ function Lesson({ ctx, onQuiz }: { ctx: Ctx; onQuiz: () => void }) {
             <h2 className="text-2xl font-bold">{l.title}</h2>
             <p className="mt-2 text-lg">{l.intro}</p>
           </div>
-          <SpeakButton text={all} lang={ctx.language} />
+          <Button variant="outline" className="rounded-full" onClick={() => speak(all, ctx.language)}>🔊 Listen</Button>
         </div>
       </Card>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -111,11 +134,7 @@ function Quiz({ ctx, difficulty, subjectId, userId }: { ctx: Ctx; difficulty: Di
       const total = results.length;
       const { error } = await supabase.from("quiz_attempts").insert({ user_id: userId, subject: subjectId, topic: ctx.topic, difficulty, score, total });
       if (error) throw error;
-      const { data: prof } = await supabase.from("profiles").select("points, streak, last_active").eq("id", userId).single();
-      const today = new Date().toISOString().slice(0, 10);
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      const streak = prof?.last_active === today ? prof.streak : prof?.last_active === yesterday ? (prof?.streak ?? 0) + 1 : 1;
-      await supabase.from("profiles").update({ points: (prof?.points ?? 0) + score * 10, streak, last_active: today }).eq("id", userId);
+      await awardPoints(userId, score * 10);
       qc.invalidateQueries({ queryKey: ["profile"] });
       qc.invalidateQueries({ queryKey: ["attempts"] });
       const mistakes = questions!.filter((_, k) => !results[k]).map((q) => q.question);
