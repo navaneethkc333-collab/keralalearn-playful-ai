@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/_authenticated/progress")({
-  head: () => ({ meta: [{ title: "Progress — Vidya Kalari" }] }),
+  head: () => ({ meta: [{ title: "Progress — Vidya Kalari" }, { name: "description", content: "See your learning progress, game scores and achievements in Vidya Kalari." }, { property: "og:title", content: "Progress — Vidya Kalari" }, { property: "og:description", content: "See your learning progress, game scores and achievements in Vidya Kalari." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: ProgressPage,
 });
 

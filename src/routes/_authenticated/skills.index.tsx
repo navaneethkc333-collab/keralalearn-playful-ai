@@ -4,7 +4,7 @@ import { useSkills } from "@/hooks/useProfile";
 import { ACTIVITIES } from "@/lib/skills";
 
 export const Route = createFileRoute("/_authenticated/skills/")({
-  head: () => ({ meta: [{ title: "Skill Development — Vidya Kalari" }] }),
+  head: () => ({ meta: [{ title: "Skill Development — Vidya Kalari" }, { name: "description", content: "Practice drawing, writing and subject skills in Vidya Kalari." }, { property: "og:title", content: "Skill Development — Vidya Kalari" }, { property: "og:description", content: "Practice drawing, writing and subject skills in Vidya Kalari." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Skills,
 });
 

@@ -12,9 +12,19 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { SpeakButton, speak } from "@/components/SpeakButton";
+import { TopicGame } from "@/components/TopicGame";
+import { z } from "zod";
 
 export const Route = createFileRoute("/_authenticated/learn/$subject/$topic")({
-  head: ({ params }) => ({ meta: [{ title: `${params.topic} — Vidya Kalari` }] }),
+  validateSearch: (search) => z.object({ tab: z.literal("game").optional() }).parse(search),
+  head: ({ params }) => ({ meta: [
+    { title: `${params.topic} — Vidya Kalari` },
+    { name: "description", content: `Learn, play and take a quiz about ${params.topic} in Vidya Kalari.` },
+    { property: "og:title", content: `${params.topic} — Vidya Kalari` },
+    { property: "og:description", content: `Learn, play and take a quiz about ${params.topic} in Vidya Kalari.` },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
   component: TopicPage,
 });
 
@@ -23,12 +33,13 @@ const ORDER: Diff[] = ["easy", "medium", "hard"];
 
 function TopicPage() {
   const { subject, topic } = Route.useParams();
+  const { tab: initialTab } = Route.useSearch();
   const s = subjectById(subject);
   const { data: p } = useProfile();
   const { data: attempts = [] } = useAttempts();
   const { data: done = [] } = useCompletions();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"lesson" | "quiz">("lesson");
+  const [tab, setTab] = useState<"lesson" | "game" | "quiz">(initialTab === "game" ? "game" : "lesson");
   const complete = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("topic_completions").insert({ user_id: p!.id, subject, topic, class_level: p!.class_level });
@@ -58,20 +69,18 @@ function TopicPage() {
       <Link to="/learn/$subject" params={{ subject }} className="text-sm font-semibold text-primary">← {s.name}</Link>
       <h1 className="text-3xl font-bold">{s.emoji} {topic}</h1>
       <div className="flex flex-wrap gap-2">
-        <Button asChild size="lg" variant="secondary" className="rounded-full">
-          <Link to="/game/$subject/$topic" params={{ subject, topic }}>🎈 Start Game</Link>
-        </Button>
         {done.some((c) => c.subject === subject && c.topic === topic) ? (
           <Button size="lg" variant="outline" className="rounded-full" disabled>✅ Completed</Button>
         ) : (
           <Button size="lg" variant="outline" className="rounded-full" disabled={complete.isPending} onClick={() => complete.mutate()}>Mark as Completed</Button>
         )}
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant={tab === "lesson" ? "default" : "outline"} className="rounded-full" onClick={() => setTab("lesson")}>📘 Learn</Button>
+        <Button variant={tab === "game" ? "default" : "outline"} className="rounded-full" onClick={() => setTab("game")}>🎮 Game</Button>
         <Button variant={tab === "quiz" ? "default" : "outline"} className="rounded-full" onClick={() => setTab("quiz")}>🎯 Quiz ({difficulty})</Button>
       </div>
-      {tab === "lesson" ? <Lesson ctx={ctx} onQuiz={() => setTab("quiz")} /> : <Quiz ctx={ctx} difficulty={difficulty} subjectId={s.id} userId={p.id} />}
+      {tab === "lesson" ? <Lesson ctx={ctx} onQuiz={() => setTab("quiz")} /> : tab === "game" ? <TopicGame classLevel={p.class_level} subject={s.id} subjectName={s.name} topic={topic} language={lang} userId={p.id} /> : <Quiz ctx={ctx} difficulty={difficulty} subjectId={s.id} userId={p.id} />}
     </div>
   );
 }

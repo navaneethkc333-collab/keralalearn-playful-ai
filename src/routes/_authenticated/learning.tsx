@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/learning")({
-  head: () => ({ meta: [{ title: "Subject Learning — Vidya Kalari" }] }),
+  head: () => ({ meta: [{ title: "Subject Learning — Vidya Kalari" }, { name: "description", content: "Explore Kerala primary school subjects and topics with lessons, games and quizzes." }, { property: "og:title", content: "Subject Learning — Vidya Kalari" }, { property: "og:description", content: "Explore Kerala primary school subjects and topics with lessons, games and quizzes." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Learning,
 });
 
