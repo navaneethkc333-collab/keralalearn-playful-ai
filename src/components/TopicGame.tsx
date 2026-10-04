@@ -57,7 +57,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
   const startTime = useRef(0);
   const roundDuration = difficulty === "easy" ? 16000 : difficulty === "medium" ? 13000 : 10000;
   // Each topic starts with a stable game style; replays rotate through the other styles.
-  const topicOffset = Array.from(`${classLevel}:${subject}:${topic}`).reduce((n, c) => n + c.codePointAt(0)!, 0) % MODES.length;
+  const topicOffset = Array.from(`${classLevel}:${subject}:${topic}`).reduce((n, c) => n + (c.codePointAt(0) ?? 0), 0) % MODES.length;
   const nextMode = MODES[(topicOffset + attempts) % MODES.length];
 
   const load = useMutation({
