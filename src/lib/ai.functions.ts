@@ -93,7 +93,7 @@ Return JSON: {"questions": [{"question": string, "options": [string,string,strin
   });
 
 export type GameMode = "balloon" | "match" | "sequence";
-export type GameRound = { prompt: string; pairs?: { left: string; right: string }[]; items?: string[] };
+export type GameRound = { prompt: string; pairs?: { left: string; right: string }[] | undefined; items?: string[] | undefined };
 
 const gameRoundSchema = z.object({
   prompt: z.string().min(3).max(240),

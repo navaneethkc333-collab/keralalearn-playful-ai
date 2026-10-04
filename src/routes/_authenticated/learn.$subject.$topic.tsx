@@ -13,9 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { SpeakButton, speak } from "@/components/SpeakButton";
 import { TopicGame } from "@/components/TopicGame";
+import { z } from "zod";
 
 export const Route = createFileRoute("/_authenticated/learn/$subject/$topic")({
-  validateSearch: (search: Record<string, unknown>) => ({ tab: search.tab === "game" ? "game" as const : undefined }),
+  validateSearch: (search) => z.object({ tab: z.literal("game").optional() }).parse(search),
   head: ({ params }) => ({ meta: [
     { title: `${params.topic} — Vidya Kalari` },
     { name: "description", content: `Learn, play and take a quiz about ${params.topic} in Vidya Kalari.` },

@@ -20,7 +20,8 @@ function shuffled<T>(items: T[]) {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
+    const a = copy[i]; const b = copy[j];
+    if (a !== undefined && b !== undefined) { copy[i] = b; copy[j] = a; }
   }
   return copy;
 }
@@ -58,7 +59,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
   const roundDuration = difficulty === "easy" ? 16000 : difficulty === "medium" ? 13000 : 10000;
   // Each topic starts with a stable game style; replays rotate through the other styles.
   const topicOffset = Array.from(`${classLevel}:${subject}:${topic}`).reduce((n, c) => n + (c.codePointAt(0) ?? 0), 0) % MODES.length;
-  const nextMode = MODES[(topicOffset + attempts) % MODES.length];
+  const nextMode = MODES[(topicOffset + attempts) % MODES.length] ?? "balloon";
 
   const load = useMutation({
     mutationFn: async () => {
@@ -166,7 +167,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
         <div className="grid min-h-64 grid-cols-2 gap-3 rounded-lg bg-sky/20 p-4 sm:grid-cols-4">
           {question.options.map((option, index) => (
             <Button key={`${round}-${index}`} variant="ghost" disabled={balloonPicked !== null || balloonExpired}
-              className={`${COLORS[index]} relative h-28 w-full whitespace-normal rounded-[50%] px-3 text-center text-base font-bold text-foreground shadow-md transition-transform hover:-translate-y-2 sm:h-36 ${balloonPicked === index ? "ring-4 ring-primary" : ""}`}
+              className={`${COLORS[index] ?? "bg-leaf"} relative h-28 w-full whitespace-normal rounded-[50%] px-3 text-center text-base font-bold text-foreground shadow-md transition-transform hover:-translate-y-2 sm:h-36 ${balloonPicked === index ? "ring-4 ring-primary" : ""}`}
               onClick={() => {
                 if (timer.current) clearTimeout(timer.current);
                 setBalloonPicked(index);
@@ -218,7 +219,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
             {step === 0 && <span className="text-muted-foreground">Your order…</span>}
           </div>
           <div className="grid grid-cols-2 gap-3">{choices.map((item, index) => (
-            <Button key={index} variant="secondary" disabled={current.items?.indexOf(item) < step}
+            <Button key={index} variant="secondary" disabled={(current.items?.indexOf(item) ?? -1) < step}
               className="h-20 w-full whitespace-normal px-2 text-center text-base" onClick={() => {
                 if (item !== current.items?.[step]) { setMistakes((n) => n + 1); setFeedback("Not yet — try another piece!"); return; }
                 setStep(step + 1); setFeedback("That's right!");
