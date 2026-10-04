@@ -4,7 +4,7 @@ import { useProfile, useAttempts, useCompletions } from "@/hooks/useProfile";
 import { Card } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_authenticated/learn/$subject/")({
-  head: () => ({ meta: [{ title: "Topics — Vidya Kalari" }] }),
+  head: ({ params }) => ({ meta: [{ title: `${params.subject} Topics — Vidya Kalari` }, { name: "description", content: `Choose a ${params.subject} topic to learn and play in Vidya Kalari.` }, { property: "og:title", content: `${params.subject} Topics — Vidya Kalari` }, { property: "og:description", content: `Choose a ${params.subject} topic to learn and play in Vidya Kalari.` }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: SubjectPage,
 });
 

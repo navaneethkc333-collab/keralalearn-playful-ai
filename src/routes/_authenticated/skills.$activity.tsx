@@ -16,7 +16,7 @@ import { SpeakButton } from "@/components/SpeakButton";
 import { DrawingCanvas, type DrawingHandle } from "@/components/DrawingCanvas";
 
 export const Route = createFileRoute("/_authenticated/skills/$activity")({
-  head: ({ params }) => ({ meta: [{ title: `${activityById(params.activity)?.name ?? "Activity"} — Vidya Kalari` }] }),
+  head: ({ params }) => ({ meta: [{ title: `${activityById(params.activity)?.name ?? "Activity"} — Vidya Kalari` }, { name: "description", content: `Practice ${activityById(params.activity)?.name ?? "skills"} with a fresh activity in Vidya Kalari.` }, { property: "og:title", content: `${activityById(params.activity)?.name ?? "Activity"} — Vidya Kalari` }, { property: "og:description", content: `Practice ${activityById(params.activity)?.name ?? "skills"} with a fresh activity in Vidya Kalari.` }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: ActivityPage,
 });
 

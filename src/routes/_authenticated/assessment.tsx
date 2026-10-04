@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { SpeakButton } from "@/components/SpeakButton";
 
 export const Route = createFileRoute("/_authenticated/assessment")({
-  head: () => ({ meta: [{ title: "Assessment — Vidya Kalari" }] }),
+  head: () => ({ meta: [{ title: "Assessment — Vidya Kalari" }, { name: "description", content: "Take a class-level assessment across your Vidya Kalari subjects." }, { property: "og:title", content: "Assessment — Vidya Kalari" }, { property: "og:description", content: "Take a class-level assessment across your Vidya Kalari subjects." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: AssessmentPage,
 });
 

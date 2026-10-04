@@ -16,6 +16,8 @@ export const Route = createFileRoute("/auth")({
       { name: "description", content: "Log in or create your student account." },
       { property: "og:title", content: "Student Login — Vidya Kalari" },
       { property: "og:description", content: "Log in or create your student account." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: AuthPage,
