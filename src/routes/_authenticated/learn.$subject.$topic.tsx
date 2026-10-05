@@ -80,7 +80,7 @@ function TopicPage() {
         <Button variant={tab === "game" ? "default" : "outline"} className="rounded-full" onClick={() => setTab("game")}>🎮 Game</Button>
         <Button variant={tab === "quiz" ? "default" : "outline"} className="rounded-full" onClick={() => setTab("quiz")}>🎯 Quiz ({difficulty})</Button>
       </div>
-      {tab === "lesson" ? <Lesson ctx={ctx} onQuiz={() => setTab("quiz")} /> : tab === "game" ? <TopicGame classLevel={p.class_level} subject={s.id} subjectName={s.name} topic={topic} language={lang} userId={p.id} /> : <Quiz ctx={ctx} difficulty={difficulty} subjectId={s.id} userId={p.id} />}
+      {tab === "lesson" ? <Lesson ctx={ctx} onQuiz={() => setTab("quiz")} /> : tab === "game" ? <TopicGame key={`${p.class_level}:${s.id}:${topic}:${lang}`} classLevel={p.class_level} subject={s.id} subjectName={s.name} topic={topic} language={lang} userId={p.id} /> : <Quiz ctx={ctx} difficulty={difficulty} subjectId={s.id} userId={p.id} />}
     </div>
   );
 }
