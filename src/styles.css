@@ -108,3 +108,12 @@
     font-family: var(--font-display);
   }
 }
+
+@keyframes companion-cheer {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-8px) rotate(3deg); }
+}
+.game-cheer { animation: companion-cheer 650ms ease-in-out; }
+@media (prefers-reduced-motion: reduce) {
+  .game-cheer { animation: none; }
+}
