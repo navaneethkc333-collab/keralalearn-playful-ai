@@ -8,7 +8,7 @@ export function GameCharacter({ character, happy = false }: { character: Charact
   return <svg viewBox="0 0 180 190" role="img" aria-label={`${character.name}, your cartoon companion`} className={`game-companion h-36 w-36 shrink-0 ${colors[character.color]} ${happy ? "game-cheer" : ""}`}>
     <ellipse cx="90" cy="173" rx="51" ry="8" className="fill-foreground/10" />
     <g fill="currentColor" stroke="var(--foreground)" strokeWidth="3" strokeLinejoin="round">
-      {character.ears === "long" && <><ellipse cx=" sixty" cy="38" rx="12" ry="30" transform="rotate(-18  sixty 38)" /><ellipse cx="119" cy="38" rx="12" ry="30" transform="rotate(18 119 38)" /></>}
+      {character.ears === "long" && <><ellipse cx="61" cy="38" rx="12" ry="30" transform="rotate(-18 61 38)" /><ellipse cx="119" cy="38" rx="12" ry="30" transform="rotate(18 119 38)" /></>}
       {character.ears === "round" && <><circle cx="53" cy="60" r="21" /><circle cx="127" cy="60" r="21" /></>}
       {character.ears === "pointed" && <><path d="M47 87L43 30L78 63Z" /><path d="M102 63L137 30L133 87Z" /></>}
       <path d="M48 117Q15 88 24 121M132 117Q165 88 156 121" fill="none" strokeWidth="10" strokeLinecap="round" />
