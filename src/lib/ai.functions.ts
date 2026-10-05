@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { topicGameSchema } from "@/lib/topic-game";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
@@ -95,29 +96,22 @@ Return JSON: {"questions": [{"question": string, "options": [string,string,strin
 export type GameMode = "balloon" | "match" | "sequence";
 export type GameRound = { prompt: string; pairs?: { left: string; right: string }[] | undefined; items?: string[] | undefined };
 
-const gameRoundSchema = z.object({
-  prompt: z.string().min(3).max(240),
-  pairs: z.array(z.object({ left: z.string().min(1).max(60), right: z.string().min(1).max(60) })).length(4).optional(),
-  items: z.array(z.string().min(1).max(60)).length(4).optional(),
-});
-
 export const generateTopicGame = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => base.extend({ mode: z.enum(["match", "sequence"]), difficulty: z.enum(["easy", "medium", "hard"]) }).parse(d))
+  .inputValidator((d) => base.extend({ previousMode: z.enum(["balloon", "match", "sequence"]).optional(), difficulty: z.enum(["easy", "medium", "hard"]) }).parse(d))
   .handler(async ({ data }) => {
-    const rule = data.mode === "match"
-      ? 'Each round has exactly 4 distinct, unambiguous pairs of short related terms. Left values must all differ and right values must all differ. Use topic-specific associations (e.g. concept and example, word and meaning, number and quantity). Return each pair as {"left":string,"right":string}.'
-      : 'Each round has exactly 4 distinct short items in their CORRECT order, from first to last. Ask the child to arrange them using a clear objective rule based on this topic (e.g. numerical order, story event order, alphabetical order, life-cycle order). Avoid ambiguous sequences. Return "items" as an array in the correct order.';
-    const prompt = `Create exactly 3 different playable ${data.mode} game rounds on the selected topic "${data.topic}" in ${data.subject}, for a Class ${data.classLevel} Kerala State syllabus child. Difficulty: ${data.difficulty}. Write in ${langName(data.language)}. Every prompt and answer MUST be specifically about "${data.topic}". Keep terms short and age appropriate. ${rule} Seed ${Math.random()}.
-Return JSON {"rounds":[{"prompt":string,"pairs":[{"left":string,"right":string}]}]} for match OR {"rounds":[{"prompt":string,"items":[string,string,string,string]}]} for sequence. No other format.`;
-    const result = await geminiJson<{ rounds: GameRound[] }>(prompt);
-    const rounds = (result.rounds ?? []).map((round) => gameRoundSchema.safeParse(round)).filter((r) => r.success).map((r) => r.data)
-      .filter((r) => data.mode === "match"
-        ? r.pairs && new Set(r.pairs.map((p) => p.left)).size === 4 && new Set(r.pairs.map((p) => p.right)).size === 4
-        : r.items && new Set(r.items).size === 4)
-      .slice(0, 3);
-    if (rounds.length < 3) throw new Error("Could not make this game. Please try again.");
-    return { rounds };
+    const prompt = `Design a fresh playable educational game about "${data.topic}" in ${data.subject} for a Class ${data.classLevel} Kerala State syllabus child. Difficulty ${data.difficulty}. Write in ${langName(data.language)}. Every question, answer and round must teach this selected topic, not generic trivia. Seed ${Math.random()}.
+YOU choose the best mode: balloon (answer quiz questions), match (related pairs), or sequence (put items in order). ${data.previousMode ? `For variety choose a mode other than ${data.previousMode}.` : "Choose whichever best teaches this topic."}
+Invent an ORIGINAL friendly cartoon companion with a new name, appearance and short greeting that introduces this game. Do not copy copyrighted characters. Choose its body, ears, accessory, color and eye size from the allowed values. Invent a playful topic-specific title.
+Return JSON ONLY:
+{"title":string,"mode":"balloon"|"match"|"sequence","character":{"name":string,"body":"round"|"tall"|"wide","ears":"long"|"round"|"pointed"|"none","accessory":"crown"|"bow"|"antenna"|"leaf","color":"leaf"|"sky"|"coral"|"sun","eyeSize":number (6-15),"greeting":string},"questions":[],"rounds":[]}.
+For balloon: exactly 6 questions with {"question":string,"options":[4 DIFFERENT short strings],"answerIndex":integer 0-3,"explanation":string}, one correct answer, varied positions; rounds empty.
+For match: exactly 3 rounds with {"prompt":string,"pairs":[4 objects {"left":string,"right":string}]}. All left values differ, all right values differ, unambiguous topic associations; questions empty.
+For sequence: exactly 3 rounds with {"prompt":string,"items":[4 DIFFERENT short strings IN CORRECT ORDER]}. State a clear objective rule in the prompt, no ambiguous order; questions empty.
+Keep answers under 4 words, prompts under 240 characters, title under 80, greeting under 180. Do not generate code, HTML or SVG.`;
+    const parsed = topicGameSchema.safeParse(await geminiJson<unknown>(prompt));
+    if (!parsed.success) throw new Error("Could not make a complete game. Please try again.");
+    return parsed.data;
   });
 
 export const getFeedback = createServerFn({ method: "POST" })

@@ -2,16 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Heart, Volume2 } from "lucide-react";
+import { Heart, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { generateQuiz, generateTopicGame, type GameMode, type GameRound, type QuizQuestion } from "@/lib/ai.functions";
+import { generateTopicGame, type GameMode, type GameRound, type QuizQuestion } from "@/lib/ai.functions";
+import type { GeneratedTopicGame } from "@/lib/topic-game";
+import { GameCharacter } from "@/components/GameCharacter";
+import { useGameSound } from "@/hooks/useGameSound";
 import { awardPoints, useGames } from "@/hooks/useProfile";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { speak } from "@/components/SpeakButton";
 
 type Difficulty = "easy" | "medium" | "hard";
-const MODES: GameMode[] = ["balloon", "match", "sequence"];
 const LABELS: Record<GameMode, string> = { balloon: "Balloon Pop", match: "Match the Pairs", sequence: "Put in Order" };
 const ICONS: Record<GameMode, string> = { balloon: "🎈", match: "🧩", sequence: "🔢" };
 const COLORS = ["bg-coral", "bg-sky", "bg-sun", "bg-leaf"];
@@ -31,8 +33,10 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
 }) {
   const { data: games = [] } = useGames();
   const qc = useQueryClient();
-  const quizFn = useServerFn(generateQuiz);
   const gameFn = useServerFn(generateTopicGame);
+  const sound = useGameSound();
+  const [game, setGame] = useState<GeneratedTopicGame | null>(null);
+  const requested = useRef(false);
   const previous = games.find((g) => g.subject === subject && g.topic === topic);
   const difficulty: Difficulty = previous
     ? ((["easy", "medium", "hard"] as Difficulty[])[Math.max(0, Math.min(2, ["easy", "medium", "hard"].indexOf(previous.difficulty) + (previous.score / previous.max_score >= 0.7 ? 1 : previous.score / previous.max_score < 0.4 ? -1 : 0)))] ?? "easy")
@@ -51,34 +55,38 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
   const [finished, setFinished] = useState(false);
   const [balloonPicked, setBalloonPicked] = useState<number | null>(null);
   const [balloonExpired, setBalloonExpired] = useState(false);
-  const [attempts, setAttempts] = useState(0);
   const [choices, setChoices] = useState<string[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTime = useRef(0);
   const roundDuration = difficulty === "easy" ? 16000 : difficulty === "medium" ? 13000 : 10000;
-  // Each topic starts with a stable game style; replays rotate through the other styles.
-  const topicOffset = Array.from(`${classLevel}:${subject}:${topic}`).reduce((n, c) => n + (c.codePointAt(0) ?? 0), 0) % MODES.length;
-  const nextMode = MODES[(topicOffset + attempts) % MODES.length] ?? "balloon";
-
   const load = useMutation({
-    mutationFn: async () => {
-      const chosen = nextMode;
-      if (chosen === "balloon") {
-        const result = await quizFn({ data: { classLevel, subject: subjectName, topic, language, difficulty, count: 6 } });
-        return { chosen, questions: result.questions, rounds: null };
-      }
-      const result = await gameFn({ data: { classLevel, subject: subjectName, topic, language, difficulty, mode: chosen } });
-      return { chosen, questions: null, rounds: result.rounds };
+    mutationFn: () => gameFn({ data: { classLevel, subject: subjectName, topic, language, difficulty, previousMode: mode ?? undefined } }),
+    retry: false,
+    onMutate: () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (advanceTimer.current) clearTimeout(advanceTimer.current);
     },
-    onSuccess: ({ chosen, questions: generatedQuestions, rounds: generatedRounds }) => {
+    onSuccess: (generated) => {
+      const chosen = generated.mode;
+      const generatedQuestions = chosen === "balloon" ? generated.questions : null;
+      const generatedRounds = chosen === "balloon" ? null : generated.rounds;
+      setGame(generated);
       setMode(chosen); setQuestions(generatedQuestions); setRounds(generatedRounds); setRound(0); setScore(0);
       setLives(3); setSelected(null); setMatched([]); setStep(0); setMistakes(0); setFeedback("");
-      setFinished(false); setBalloonPicked(null); setBalloonExpired(false); setAttempts((n) => n + 1);
+      setFinished(false); setBalloonPicked(null); setBalloonExpired(false);
       if (generatedRounds?.[0]) setChoices(shuffled(chosen === "match" ? generatedRounds[0].pairs?.map((p) => p.right) ?? [] : generatedRounds[0].items ?? []));
     },
     onError: (error) => toast.error((error as Error).message),
   });
+
+  useEffect(() => {
+    if (requested.current) return;
+    requested.current = true;
+    load.mutate();
+    // Generate once on entry; new games require an explicit replay action.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const save = useMutation({
     mutationFn: async ({ finalScore, maxScore }: { finalScore: number; maxScore: number }) => {
@@ -93,6 +101,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
   const total = mode === "balloon" ? questions?.length ?? 0 : rounds?.length ?? 0;
   function end(finalScore: number) {
     if (timer.current) clearTimeout(timer.current);
+    sound.play("finish");
     setFinished(true);
     save.mutate({ finalScore, maxScore: total * 100 });
   }
@@ -110,6 +119,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
     startTime.current = Date.now();
     timer.current = setTimeout(() => {
       setBalloonExpired(true);
+      sound.play("wrong");
       setFeedback("The balloons flew away!");
       const remaining = lives - 1;
       setLives(remaining);
@@ -125,25 +135,25 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
   }, []);
 
-  if (!mode) return (
+  if (load.isPending || (!mode && !load.isError)) return (
     <div className="mx-auto max-w-2xl py-8 text-center">
-      <div className="text-6xl" aria-hidden="true">{ICONS[nextMode]}</div>
-      <h2 className="mt-3 text-3xl font-bold">{LABELS[nextMode]}</h2>
+      <Sparkles className="mx-auto h-14 w-14 animate-pulse text-primary motion-reduce:animate-none" />
+      <h2 className="mt-3 text-2xl font-bold" role="status">AI is generating your game…</h2>
       <p className="mt-3 text-lg text-muted-foreground">{topic} · {difficulty} level</p>
-      <p className="mt-2 text-base">{nextMode === "balloon" ? "Choose the right answer before it flies away." : nextMode === "match" ? "Find the pairs that belong together." : "Tap the pieces in the right order."}</p>
-      <Button size="lg" className="mt-6 rounded-full" onClick={() => load.mutate()} disabled={load.isPending}>
-        {load.isPending ? "Making your game…" : "Play game"}
-      </Button>
+      <div className="mt-5 flex justify-center gap-4 text-3xl" aria-hidden="true">🎨 🧩 🎵</div>
     </div>
   );
 
+  if (load.isError) return <div className="py-8 text-center"><p role="alert" className="text-destructive">{load.error.message}</p><Button className="mt-4" onClick={() => load.mutate()}>Try again</Button></div>;
+  if (!mode || !game) return null;
+
   if (finished) return (
     <div className="mx-auto max-w-2xl py-8 text-center">
-      <div className="text-6xl" aria-hidden="true">{score >= total * 70 ? "🏆" : "🌟"}</div>
-      <h2 className="mt-3 text-3xl font-bold">{LABELS[mode]} · {score}/{total * 100}</h2>
+      <div className="flex justify-center"><GameCharacter character={game.character} happy /></div>
+      <h2 className="mt-3 text-3xl font-bold">{game.title} · {score}/{total * 100}</h2>
       <p className="mt-2 text-muted-foreground">+{Math.round(score / 20)} stars</p>
       <Button className="mt-6 rounded-full" onClick={() => load.mutate()} disabled={load.isPending}>
-        {load.isPending ? "Making your game…" : `Play another game · ${LABELS[nextMode]}`}
+        Generate another game
       </Button>
     </div>
   );
@@ -152,6 +162,11 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
   const question = questions?.[round];
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      <div className="flex items-center gap-3 border-b pb-4">
+        <GameCharacter character={game.character} happy={feedback.includes("!")} />
+        <div className="min-w-0 flex-1"><h2 className="break-words text-xl font-bold sm:text-2xl">{game.title}</h2><p className="mt-1 font-semibold text-primary">{game.character.name}</p><p className="mt-1 break-words text-sm">{game.character.greeting}</p></div>
+        <Button variant="outline" size="icon" className="shrink-0" aria-label={sound.enabled ? "Mute game sound" : "Enable game sound"} aria-pressed={sound.enabled} title={sound.enabled ? "Mute game sound" : "Enable game sound"} onClick={() => { sound.setEnabled(!sound.enabled); if (sound.enabled) window.speechSynthesis?.cancel(); }}>{sound.enabled ? <Volume2 /> : <VolumeX />}</Button>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-2 font-bold">
         <span>{ICONS[mode]} {LABELS[mode]} · {round + 1}/{total}</span>
         {mode === "balloon" && <span className="flex gap-1" aria-label={`${lives} lives left`}>{[0, 1, 2].map((k) => <Heart key={k} className={`h-5 w-5 ${k < lives ? "fill-coral text-coral" : "text-muted"}`} />)}</span>}
@@ -172,6 +187,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
                 if (timer.current) clearTimeout(timer.current);
                 setBalloonPicked(index);
                 const right = index === question.answerIndex;
+                sound.play(right ? "correct" : "wrong");
                 const gained = right ? 50 + Math.round(Math.max(0, 1 - (Date.now() - startTime.current) / roundDuration) * 50) : 0;
                 const updatedScore = score + gained;
                 const remaining = right ? lives : lives - 1;
@@ -187,7 +203,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-3">{current.pairs.map((pair, index) => (
             <Button key={index} variant={selected === pair.left ? "default" : "outline"} disabled={matched.includes(index)}
-              className="h-16 w-full whitespace-normal px-2 text-center text-base" onClick={() => { setSelected(pair.left); setFeedback(""); }}>
+              className="h-16 w-full whitespace-normal px-2 text-center text-base" onClick={() => { sound.play("tap"); setSelected(pair.left); setFeedback(""); }}>
               {matched.includes(index) ? "✓ " : ""}{pair.left}
             </Button>
           ))}</div>
@@ -197,6 +213,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
                 if (!selected) { setFeedback("Choose a piece on the left first."); return; }
                 const pairIndex = current.pairs?.findIndex((p) => p.left === selected) ?? -1;
                 const right = current.pairs?.[pairIndex]?.right === answer;
+                sound.play(right ? "correct" : "wrong");
                 const updatedMistakes = mistakes + (right ? 0 : 1);
                 setMistakes(updatedMistakes); setSelected(null);
                 if (!right) { setFeedback("Try another match!"); return; }
@@ -221,7 +238,8 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
           <div className="grid grid-cols-2 gap-3">{choices.map((item, index) => (
             <Button key={index} variant="secondary" disabled={(current.items?.indexOf(item) ?? -1) < step}
               className="h-20 w-full whitespace-normal px-2 text-center text-base" onClick={() => {
-                if (item !== current.items?.[step]) { setMistakes((n) => n + 1); setFeedback("Not yet — try another piece!"); return; }
+                if (item !== current.items?.[step]) { sound.play("wrong"); setMistakes((n) => n + 1); setFeedback("Not yet — try another piece!"); return; }
+                sound.play("correct");
                 setStep(step + 1); setFeedback("That's right!");
                 if (step + 1 === 4) {
                   const updatedScore = score + Math.max(40, 100 - mistakes * 15);
