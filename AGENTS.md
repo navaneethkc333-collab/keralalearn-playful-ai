@@ -13,3 +13,4 @@
 - Student login is username-only: username maps to a synthetic email `<username>@students.vidyakalari.app`, auto-confirm on (spec forbids email).
 - Topic games live in the Learn/Game/Quiz topic view; the old game URL redirects there, and shared game modes use topic-specific server-generated rounds so navigation and progress stay unified.
 - Gemini returns validated game data and original character appearance parameters, never executable code or markup; trusted renderers provide gameplay, cartoons, and optional local sound effects for safe child-friendly play.
+- Automatic topic-game generation uses a user/topic-scoped query with explicit replay generations so completed requests remain observable across component lifecycle changes and tab switches.
