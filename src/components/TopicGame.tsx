@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Heart, Volume2, VolumeX, Sparkles } from "lucide-react";
@@ -36,7 +36,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
   const gameFn = useServerFn(generateTopicGame);
   const sound = useGameSound();
   const [game, setGame] = useState<GeneratedTopicGame | null>(null);
-  const requested = useRef(false);
+  const [generation, setGeneration] = useState(0);
   const previous = games.find((g) => g.subject === subject && g.topic === topic);
   const difficulty: Difficulty = previous
     ? ((["easy", "medium", "hard"] as Difficulty[])[Math.max(0, Math.min(2, ["easy", "medium", "hard"].indexOf(previous.difficulty) + (previous.score / previous.max_score >= 0.7 ? 1 : previous.score / previous.max_score < 0.4 ? -1 : 0)))] ?? "easy")
@@ -60,14 +60,20 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTime = useRef(0);
   const roundDuration = difficulty === "easy" ? 16000 : difficulty === "medium" ? 13000 : 10000;
-  const load = useMutation({
-    mutationFn: () => gameFn({ data: { classLevel, subject: subjectName, topic, language, difficulty, previousMode: mode ?? undefined } }),
+  const load = useQuery({
+    queryKey: ["topic-game", userId, classLevel, subject, topic, language, generation],
+    queryFn: () => gameFn({ data: { classLevel, subject: subjectName, topic, language, difficulty, previousMode: mode ?? undefined } }),
     retry: false,
-    onMutate: () => {
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  useEffect(() => {
+      const generated = load.data;
+      if (!generated) return;
       if (timer.current) clearTimeout(timer.current);
       if (advanceTimer.current) clearTimeout(advanceTimer.current);
-    },
-    onSuccess: (generated) => {
       const chosen = generated.mode;
       const generatedQuestions = chosen === "balloon" ? generated.questions : null;
       const generatedRounds = chosen === "balloon" ? null : generated.rounds;
@@ -76,17 +82,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
       setLives(3); setSelected(null); setMatched([]); setStep(0); setMistakes(0); setFeedback("");
       setFinished(false); setBalloonPicked(null); setBalloonExpired(false);
       if (generatedRounds?.[0]) setChoices(shuffled(chosen === "match" ? generatedRounds[0].pairs?.map((p) => p.right) ?? [] : generatedRounds[0].items ?? []));
-    },
-    onError: (error) => toast.error((error as Error).message),
-  });
-
-  useEffect(() => {
-    if (requested.current) return;
-    requested.current = true;
-    load.mutate();
-    // Generate once on entry; new games require an explicit replay action.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load.data]);
 
   const save = useMutation({
     mutationFn: async ({ finalScore, maxScore }: { finalScore: number; maxScore: number }) => {
@@ -135,7 +131,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
   }, []);
 
-  if (load.isPending || (!mode && !load.isError)) return (
+  if (load.isPending || (!game && !load.isError)) return (
     <div className="mx-auto max-w-2xl py-8 text-center">
       <Sparkles className="mx-auto h-14 w-14 animate-pulse text-primary motion-reduce:animate-none" />
       <h2 className="mt-3 text-2xl font-bold" role="status">AI is generating your game…</h2>
@@ -144,7 +140,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
     </div>
   );
 
-  if (load.isError) return <div className="py-8 text-center"><p role="alert" className="text-destructive">{load.error.message}</p><Button className="mt-4" onClick={() => load.mutate()}>Try again</Button></div>;
+  if (load.isError) return <div className="py-8 text-center"><p role="alert" className="text-destructive">{load.error.message}</p><Button className="mt-4" onClick={() => void load.refetch()}>Try again</Button></div>;
   if (!mode || !game) return null;
 
   if (finished) return (
@@ -152,7 +148,7 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
       <div className="flex justify-center"><GameCharacter character={game.character} happy /></div>
       <h2 className="mt-3 text-3xl font-bold">{game.title} · {score}/{total * 100}</h2>
       <p className="mt-2 text-muted-foreground">+{Math.round(score / 20)} stars</p>
-      <Button className="mt-6 rounded-full" onClick={() => load.mutate()} disabled={load.isPending}>
+      <Button className="mt-6 rounded-full" onClick={() => setGeneration((value) => value + 1)} disabled={load.isPending}>
         Generate another game
       </Button>
     </div>
