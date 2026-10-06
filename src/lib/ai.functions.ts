@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { topicGameSchema } from "@/lib/topic-game";
+import { topicGameSchema, gameModes } from "@/lib/topic-game";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
