@@ -93,22 +93,20 @@ Return JSON: {"questions": [{"question": string, "options": [string,string,strin
     return { questions };
   });
 
-export type GameMode = "balloon" | "match" | "sequence";
-export type GameRound = { prompt: string; pairs?: { left: string; right: string }[] | undefined; items?: string[] | undefined };
+export type { GameMode } from "./topic-game";
 
 export const generateTopicGame = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => base.extend({ previousMode: z.enum(["balloon", "match", "sequence"]).optional(), difficulty: z.enum(["easy", "medium", "hard"]) }).parse(d))
+  .inputValidator((d) => base.extend({ previousMode: z.enum(gameModes).optional(), difficulty: z.enum(["easy", "medium", "hard"]) }).parse(d))
   .handler(async ({ data }) => {
-    const prompt = `Design a fresh playable educational game about "${data.topic}" in ${data.subject} for a Class ${data.classLevel} Kerala State syllabus child. Difficulty ${data.difficulty}. Write in ${langName(data.language)}. Every question, answer and round must teach this selected topic, not generic trivia. Seed ${Math.random()}.
-YOU choose the best mode: balloon (answer quiz questions), match (related pairs), or sequence (put items in order). ${data.previousMode ? `For variety choose a mode other than ${data.previousMode}.` : "Choose whichever best teaches this topic."}
-Invent an ORIGINAL friendly cartoon companion with a new name, appearance and short greeting that introduces this game. Do not copy copyrighted characters. Choose its body, ears, accessory, color and eye size from the allowed values. Invent a playful topic-specific title.
+    const prompt = `Design a fresh playable educational game about "${data.topic}" in ${data.subject} for a Class ${data.classLevel} Kerala State syllabus child. Difficulty ${data.difficulty}. Write in ${langName(data.language)}. Every clue, question and answer must teach this selected syllabus topic, not generic trivia. Seed ${Math.random()}.
+YOU choose the best mode: "alphabet" (a circle of letters; each letter has a clue whose one-word answer starts with that letter — best for vocabulary, names, words), "froggy" (a frog jumps across lily pads by choosing the right answer to each question), or "aster" (a space ship flies into the right answer card before it falls). ${data.previousMode ? `For variety choose a mode other than ${data.previousMode}.` : ""}
+Invent an ORIGINAL friendly cartoon companion with a new name, appearance and short greeting. Do not copy copyrighted characters. Invent a playful topic-specific title.
 Return JSON ONLY:
-{"title":string,"mode":"balloon"|"match"|"sequence","character":{"name":string,"body":"round"|"tall"|"wide","ears":"long"|"round"|"pointed"|"none","accessory":"crown"|"bow"|"antenna"|"leaf","color":"leaf"|"sky"|"coral"|"sun","eyeSize":number (6-15),"greeting":string},"questions":[],"rounds":[]}.
-For balloon: exactly 6 questions with {"question":string,"options":[4 DIFFERENT short strings],"answerIndex":integer 0-3,"explanation":string}, one correct answer, varied positions; rounds empty.
-For match: exactly 3 rounds with {"prompt":string,"pairs":[4 objects {"left":string,"right":string}]}. All left values differ, all right values differ, unambiguous topic associations; questions empty.
-For sequence: exactly 3 rounds with {"prompt":string,"items":[4 DIFFERENT short strings IN CORRECT ORDER]}. State a clear objective rule in the prompt, no ambiguous order; questions empty.
-Keep answers under 4 words, prompts under 240 characters, title under 80, greeting under 180. Do not generate code, HTML or SVG.`;
+{"title":string,"mode":"alphabet"|"froggy"|"aster","character":{"name":string,"body":"round"|"tall"|"wide","ears":"long"|"round"|"pointed"|"none","accessory":"crown"|"bow"|"antenna"|"leaf","color":"leaf"|"sky"|"coral"|"sun","eyeSize":number (6-15),"greeting":string},"words":[],"questions":[]}.
+For alphabet: 6 to 8 words {"letter":string,"clue":string,"answer":string}; each answer is ONE simple word a child can spell that begins with its letter (the first letter/character of the answer), all letters different, clues easy and clearly about the topic; questions empty.
+For froggy or aster: exactly 8 questions {"question":string,"options":[3 DIFFERENT short strings],"answerIndex":integer 0-2,"explanation":string}, varied answer positions; words empty.
+Keep answers under 4 words, clues/questions under 200 characters, title under 80, greeting under 180. Do not generate code, HTML or SVG.`;
     const parsed = topicGameSchema.safeParse(await geminiJson<unknown>(prompt));
     if (!parsed.success) throw new Error("Could not make a complete game. Please try again.");
     return parsed.data;
