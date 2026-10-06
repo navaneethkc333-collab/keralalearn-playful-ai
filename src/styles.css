@@ -114,6 +114,16 @@
   50% { transform: translateY(-8px) rotate(3deg); }
 }
 .game-cheer { animation: companion-cheer 650ms ease-in-out; }
+@keyframes star-fall { from { transform: translateY(-20px); } to { transform: translateY(520px); } }
+.game-star { animation: star-fall linear infinite; }
+@keyframes card-drop { from { transform: translateY(-100%); } to { transform: translateY(260px); } }
+.game-drop { animation-name: card-drop; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes pad-bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-6px) rotate(2deg); } }
+.game-bob { animation: pad-bob 3s ease-in-out infinite; }
+@keyframes ring-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+.game-pulse { animation: ring-pulse 1s ease-in-out infinite; }
+@keyframes splash-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+.game-shake { animation: splash-shake 300ms ease-in-out 2; }
 @media (prefers-reduced-motion: reduce) {
-  .game-cheer { animation: none; }
+  .game-cheer, .game-star, .game-bob, .game-pulse, .game-shake { animation: none; }
 }
