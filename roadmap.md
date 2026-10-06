@@ -9,4 +9,5 @@
 - [x] Progress page with real data from all modules
 - [x] Put Game beside Learn and Quiz; replace one-game-only experience with varied topic-specific playable games
 - [x] Generate games automatically with Gemini-selected gameplay, fresh topic questions, original cartoon companions, and sound (live Gemini response validated; signed-in end-to-end check requires a student session)
-- [ ] Fix completed game generation staying on the loading screen; verify loading-to-play transition and errors.
+- [x] Fix completed game generation staying on the loading screen
+- [x] Replace games with Alphabet circle, Froggy Jumps and space quiz styles; no game name shown before generation

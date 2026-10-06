@@ -1,32 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Heart, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { Heart, Volume2, VolumeX, Sparkles, SkipForward } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { generateTopicGame, type GameMode, type GameRound, type QuizQuestion } from "@/lib/ai.functions";
-import type { GeneratedTopicGame } from "@/lib/topic-game";
+import { generateTopicGame } from "@/lib/ai.functions";
+import { normalizeAnswer, type GeneratedTopicGame, type GameMode } from "@/lib/topic-game";
 import { GameCharacter } from "@/components/GameCharacter";
 import { useGameSound } from "@/hooks/useGameSound";
 import { awardPoints, useGames } from "@/hooks/useProfile";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { speak } from "@/components/SpeakButton";
 
 type Difficulty = "easy" | "medium" | "hard";
-const LABELS: Record<GameMode, string> = { balloon: "Balloon Pop", match: "Match the Pairs", sequence: "Put in Order" };
-const ICONS: Record<GameMode, string> = { balloon: "🎈", match: "🧩", sequence: "🔢" };
-const COLORS = ["bg-coral", "bg-sky", "bg-sun", "bg-leaf"];
-
-function shuffled<T>(items: T[]) {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const a = copy[i]; const b = copy[j];
-    if (a !== undefined && b !== undefined) { copy[i] = b; copy[j] = a; }
-  }
-  return copy;
-}
+type Sound = ReturnType<typeof useGameSound>;
+type Finish = (score: number, max: number) => void;
 
 export function TopicGame({ classLevel, subject, subjectName, topic, language, userId }: {
   classLevel: number; subject: string; subjectName: string; topic: string; language: "en" | "ml"; userId: string;
@@ -35,54 +24,22 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
   const qc = useQueryClient();
   const gameFn = useServerFn(generateTopicGame);
   const sound = useGameSound();
-  const [game, setGame] = useState<GeneratedTopicGame | null>(null);
   const [generation, setGeneration] = useState(0);
+  const [lastMode, setLastMode] = useState<GameMode | undefined>();
+  const [result, setResult] = useState<{ score: number; max: number } | null>(null);
   const previous = games.find((g) => g.subject === subject && g.topic === topic);
+  const ratio = previous ? previous.score / previous.max_score : 0;
   const difficulty: Difficulty = previous
-    ? ((["easy", "medium", "hard"] as Difficulty[])[Math.max(0, Math.min(2, ["easy", "medium", "hard"].indexOf(previous.difficulty) + (previous.score / previous.max_score >= 0.7 ? 1 : previous.score / previous.max_score < 0.4 ? -1 : 0)))] ?? "easy")
+    ? ((["easy", "medium", "hard"] as Difficulty[])[Math.max(0, Math.min(2, ["easy", "medium", "hard"].indexOf(previous.difficulty) + (ratio >= 0.7 ? 1 : ratio < 0.4 ? -1 : 0)))] ?? "easy")
     : "easy";
-  const [rounds, setRounds] = useState<GameRound[] | null>(null);
-  const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
-  const [mode, setMode] = useState<GameMode | null>(null);
-  const [round, setRound] = useState(0);
-  const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [matched, setMatched] = useState<number[]>([]);
-  const [step, setStep] = useState(0);
-  const [mistakes, setMistakes] = useState(0);
-  const [feedback, setFeedback] = useState("");
-  const [finished, setFinished] = useState(false);
-  const [balloonPicked, setBalloonPicked] = useState<number | null>(null);
-  const [balloonExpired, setBalloonExpired] = useState(false);
-  const [choices, setChoices] = useState<string[]>([]);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const startTime = useRef(0);
-  const roundDuration = difficulty === "easy" ? 16000 : difficulty === "medium" ? 13000 : 10000;
+
   const load = useQuery({
     queryKey: ["topic-game", userId, classLevel, subject, topic, language, generation],
-    queryFn: () => gameFn({ data: { classLevel, subject: subjectName, topic, language, difficulty, previousMode: mode ?? undefined } }),
-    retry: false,
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    queryFn: () => gameFn({ data: { classLevel, subject: subjectName, topic, language, difficulty, previousMode: lastMode } }),
+    retry: false, staleTime: Infinity, refetchOnWindowFocus: false, refetchOnReconnect: false,
   });
-
-  useEffect(() => {
-      const generated = load.data;
-      if (!generated) return;
-      if (timer.current) clearTimeout(timer.current);
-      if (advanceTimer.current) clearTimeout(advanceTimer.current);
-      const chosen = generated.mode;
-      const generatedQuestions = chosen === "balloon" ? generated.questions : null;
-      const generatedRounds = chosen === "balloon" ? null : generated.rounds;
-      setGame(generated);
-      setMode(chosen); setQuestions(generatedQuestions); setRounds(generatedRounds); setRound(0); setScore(0);
-      setLives(3); setSelected(null); setMatched([]); setStep(0); setMistakes(0); setFeedback("");
-      setFinished(false); setBalloonPicked(null); setBalloonExpired(false);
-      if (generatedRounds?.[0]) setChoices(shuffled(chosen === "match" ? generatedRounds[0].pairs?.map((p) => p.right) ?? [] : generatedRounds[0].items ?? []));
-  }, [load.data]);
+  const game = load.data;
+  useEffect(() => { if (game) { setLastMode(game.mode); setResult(null); } }, [game]);
 
   const save = useMutation({
     mutationFn: async ({ finalScore, maxScore }: { finalScore: number; maxScore: number }) => {
@@ -93,45 +50,9 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
     },
     onError: (error) => toast.error((error as Error).message),
   });
+  const finish: Finish = (score, max) => { sound.play("finish"); setResult({ score, max }); save.mutate({ finalScore: score, maxScore: max }); };
 
-  const total = mode === "balloon" ? questions?.length ?? 0 : rounds?.length ?? 0;
-  function end(finalScore: number) {
-    if (timer.current) clearTimeout(timer.current);
-    sound.play("finish");
-    setFinished(true);
-    save.mutate({ finalScore, maxScore: total * 100 });
-  }
-  function nextRound(finalScore: number, remainingLives = lives) {
-    if (remainingLives <= 0 || round + 1 >= total) { end(finalScore); return; }
-    const next = round + 1;
-    setRound(next); setSelected(null); setMatched([]); setStep(0); setMistakes(0); setFeedback("");
-    setBalloonPicked(null); setBalloonExpired(false);
-    const upcoming = rounds?.[next];
-    if (upcoming) setChoices(shuffled(mode === "match" ? upcoming.pairs?.map((p) => p.right) ?? [] : upcoming.items ?? []));
-  }
-
-  useEffect(() => {
-    if (mode !== "balloon" || finished || !questions?.[round] || balloonPicked !== null || balloonExpired) return;
-    startTime.current = Date.now();
-    timer.current = setTimeout(() => {
-      setBalloonExpired(true);
-      sound.play("wrong");
-      setFeedback("The balloons flew away!");
-      const remaining = lives - 1;
-      setLives(remaining);
-      advanceTimer.current = setTimeout(() => nextRound(score, remaining), 950);
-    }, roundDuration);
-    return () => { if (timer.current) clearTimeout(timer.current); };
-    // One clock per question; answer handlers cancel the active clock.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, round, finished, questions]);
-
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-    if (advanceTimer.current) clearTimeout(advanceTimer.current);
-  }, []);
-
-  if (load.isPending || (!game && !load.isError)) return (
+  if (load.isPending) return (
     <div className="mx-auto max-w-2xl py-8 text-center">
       <Sparkles className="mx-auto h-14 w-14 animate-pulse text-primary motion-reduce:animate-none" />
       <h2 className="mt-3 text-2xl font-bold" role="status">AI is generating your game…</h2>
@@ -139,114 +60,188 @@ export function TopicGame({ classLevel, subject, subjectName, topic, language, u
       <div className="mt-5 flex justify-center gap-4 text-3xl" aria-hidden="true">🎨 🧩 🎵</div>
     </div>
   );
+  if (load.isError || !game) return <div className="py-8 text-center"><p role="alert" className="text-destructive">{load.error?.message ?? "Could not make the game."}</p><Button className="mt-4" onClick={() => void load.refetch()}>Try again</Button></div>;
 
-  if (load.isError) return <div className="py-8 text-center"><p role="alert" className="text-destructive">{load.error.message}</p><Button className="mt-4" onClick={() => void load.refetch()}>Try again</Button></div>;
-  if (!mode || !game) return null;
-
-  if (finished) return (
+  if (result) return (
     <div className="mx-auto max-w-2xl py-8 text-center">
       <div className="flex justify-center"><GameCharacter character={game.character} happy /></div>
-      <h2 className="mt-3 text-3xl font-bold">{game.title} · {score}/{total * 100}</h2>
-      <p className="mt-2 text-muted-foreground">+{Math.round(score / 20)} stars</p>
-      <Button className="mt-6 rounded-full" onClick={() => setGeneration((value) => value + 1)} disabled={load.isPending}>
-        Generate another game
-      </Button>
+      <h2 className="mt-3 text-3xl font-bold">{game.title} · {result.score}/{result.max}</h2>
+      <p className="mt-2 text-muted-foreground">+{Math.round(result.score / 20)} stars</p>
+      <Button className="mt-6 rounded-full" onClick={() => setGeneration((v) => v + 1)}>Generate another game</Button>
     </div>
   );
 
-  const current = rounds?.[round];
-  const question = questions?.[round];
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex items-center gap-3 border-b pb-4">
-        <GameCharacter character={game.character} happy={feedback.includes("!")} />
+        <GameCharacter character={game.character} />
         <div className="min-w-0 flex-1"><h2 className="break-words text-xl font-bold sm:text-2xl">{game.title}</h2><p className="mt-1 font-semibold text-primary">{game.character.name}</p><p className="mt-1 break-words text-sm">{game.character.greeting}</p></div>
-        <Button variant="outline" size="icon" className="shrink-0" aria-label={sound.enabled ? "Mute game sound" : "Enable game sound"} aria-pressed={sound.enabled} title={sound.enabled ? "Mute game sound" : "Enable game sound"} onClick={() => { sound.setEnabled(!sound.enabled); if (sound.enabled) window.speechSynthesis?.cancel(); }}>{sound.enabled ? <Volume2 /> : <VolumeX />}</Button>
+        <Button variant="outline" size="icon" className="shrink-0" aria-label={sound.enabled ? "Mute game sound" : "Enable game sound"} aria-pressed={sound.enabled} onClick={() => { sound.setEnabled(!sound.enabled); if (sound.enabled) window.speechSynthesis?.cancel(); }}>{sound.enabled ? <Volume2 /> : <VolumeX />}</Button>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 font-bold">
-        <span>{ICONS[mode]} {LABELS[mode]} · {round + 1}/{total}</span>
-        {mode === "balloon" && <span className="flex gap-1" aria-label={`${lives} lives left`}>{[0, 1, 2].map((k) => <Heart key={k} className={`h-5 w-5 ${k < lives ? "fill-coral text-coral" : "text-muted"}`} />)}</span>}
-        <span>⭐ {score}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${(round / total) * 100}%` }} /></div>
-      <Card className="p-5 text-center">
-        <h2 className="text-xl font-bold sm:text-2xl">{mode === "balloon" ? question?.question : current?.prompt}</h2>
-        <Button variant="ghost" size="sm" className="mt-2" onClick={() => speak(mode === "balloon" ? question?.question ?? "" : current?.prompt ?? "", language)} aria-label="Listen to question"><Volume2 /> Listen</Button>
-      </Card>
+      {game.mode === "alphabet" && <AlphabetGame key={generation} game={game} sound={sound} language={language} onFinish={finish} />}
+      {game.mode === "froggy" && <FroggyGame key={generation} game={game} sound={sound} language={language} onFinish={finish} />}
+      {game.mode === "aster" && <AsterGame key={generation} game={game} sound={sound} language={language} difficulty={difficulty} onFinish={finish} />}
+    </div>
+  );
+}
 
-      {mode === "balloon" && question && (
-        <div className="grid min-h-64 grid-cols-2 gap-3 rounded-lg bg-sky/20 p-4 sm:grid-cols-4">
-          {question.options.map((option, index) => (
-            <Button key={`${round}-${index}`} variant="ghost" disabled={balloonPicked !== null || balloonExpired}
-              className={`${COLORS[index] ?? "bg-leaf"} relative h-28 w-full whitespace-normal rounded-[50%] px-3 text-center text-base font-bold text-foreground shadow-md transition-transform hover:-translate-y-2 sm:h-36 ${balloonPicked === index ? "ring-4 ring-primary" : ""}`}
-              onClick={() => {
-                if (timer.current) clearTimeout(timer.current);
-                setBalloonPicked(index);
-                const right = index === question.answerIndex;
-                sound.play(right ? "correct" : "wrong");
-                const gained = right ? 50 + Math.round(Math.max(0, 1 - (Date.now() - startTime.current) / roundDuration) * 50) : 0;
-                const updatedScore = score + gained;
-                const remaining = right ? lives : lives - 1;
-                setScore(updatedScore); setLives(remaining);
-                setFeedback(right ? `Great pop! +${gained}` : question.explanation);
-                advanceTimer.current = setTimeout(() => nextRound(updatedScore, remaining), 1100);
-              }}>{option}</Button>
+type Props = { game: GeneratedTopicGame; sound: Sound; language: "en" | "ml"; onFinish: Finish };
+
+function Prompt({ text, language }: { text: string; language: "en" | "ml" }) {
+  return (
+    <div className="rounded-lg border-b-4 border-primary bg-card p-4 text-center shadow-sm">
+      <p className="text-lg font-bold sm:text-xl">{text}</p>
+      <Button variant="ghost" size="sm" className="mt-1" onClick={() => speak(text, language)} aria-label="Listen to question"><Volume2 /> Listen</Button>
+    </div>
+  );
+}
+
+function AlphabetGame({ game, sound, language, onFinish }: Props) {
+  const words = game.words;
+  const [index, setIndex] = useState(0);
+  const [status, setStatus] = useState<("right" | "wrong" | undefined)[]>([]);
+  const [value, setValue] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const current = words[index];
+  const score = status.filter((s) => s === "right").length * 100;
+
+  function advance(right: boolean) {
+    const next = [...status]; next[index] = right ? "right" : "wrong"; setStatus(next);
+    sound.play(right ? "correct" : "wrong");
+    setFeedback(right ? "Correct!" : `It was "${current?.answer}"`);
+    setValue("");
+    const updated = next.filter((s) => s === "right").length * 100;
+    setTimeout(() => { setFeedback(""); if (index + 1 >= words.length) onFinish(updated, words.length * 100); else setIndex(index + 1); }, 1100);
+  }
+  if (!current) return null;
+  return (
+    <div className="space-y-4">
+      <Prompt text={current.clue} language={language} />
+      <div className="relative mx-auto aspect-square w-full max-w-md rounded-full bg-muted">
+        {words.map((w, i) => {
+          const angle = (i / words.length) * Math.PI * 2 - Math.PI / 2;
+          const s = status[i];
+          return (
+            <span key={i} style={{ left: `${50 + 42 * Math.cos(angle)}%`, top: `${50 + 42 * Math.sin(angle)}%` }}
+              className={`absolute flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-lg font-bold shadow-sm sm:h-14 sm:w-14 ${s === "right" ? "bg-primary text-primary-foreground" : s === "wrong" ? "bg-destructive text-destructive-foreground" : i === index ? "game-pulse border-primary bg-secondary" : "bg-card"}`}>
+              {w.letter}
+            </span>
+          );
+        })}
+        <form className="absolute inset-[22%] flex flex-col items-center justify-center gap-2 text-center" onSubmit={(e) => { e.preventDefault(); if (value.trim()) advance(normalizeAnswer(value) === normalizeAnswer(current.answer)); }}>
+          <p className="font-semibold">Starts with <b className="text-xl">{current.letter}</b></p>
+          <Input value={value} onChange={(e) => setValue(e.target.value)} aria-label="Your answer" className="h-12 text-center text-lg" autoFocus disabled={!!feedback} />
+          <div className="flex gap-2">
+            <Button type="submit" className="rounded-full" disabled={!!feedback || !value.trim()}>Check</Button>
+            <Button type="button" variant="secondary" className="rounded-full" disabled={!!feedback} onClick={() => advance(false)}><SkipForward /> Skip</Button>
+          </div>
+        </form>
+      </div>
+      <p className="min-h-7 text-center font-bold text-primary" aria-live="polite">{feedback} <span className="text-foreground">⭐ {score} · {index + 1}/{words.length}</span></p>
+    </div>
+  );
+}
+
+const PAD_X = [20, 50, 80];
+
+function FroggyGame({ game, sound, language, onFinish }: Props) {
+  const qs = game.questions;
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [jump, setJump] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const q = qs[index];
+  if (!q) return null;
+  const right = jump !== null && jump === q.answerIndex;
+
+  function pick(i: number) {
+    if (jump !== null || !q) return;
+    setJump(i);
+    const ok = i === q.answerIndex;
+    sound.play(ok ? "correct" : "wrong");
+    const newScore = score + (ok ? 100 : 0); const newLives = ok ? lives : lives - 1;
+    setScore(newScore); setLives(newLives);
+    setFeedback(ok ? "Great jump!" : `Splash! ${q.explanation}`);
+    setTimeout(() => {
+      setJump(null); setFeedback("");
+      if (newLives <= 0 || index + 1 >= qs.length) onFinish(newScore, qs.length * 100); else setIndex(index + 1);
+    }, ok ? 1100 : 2200);
+  }
+  return (
+    <div className="space-y-3">
+      <Prompt text={q.question} language={language} />
+      <div className="flex justify-between font-bold"><span className="flex gap-1" aria-label={`${lives} lives left`}>{[0, 1, 2].map((k) => <Heart key={k} className={`h-5 w-5 ${k < lives ? "fill-coral text-coral" : "text-muted"}`} />)}</span><span>🪷 {index + 1}/{qs.length}</span><span>⭐ {score}</span></div>
+      <div className="relative h-96 overflow-hidden rounded-lg bg-sky">
+        {[15, 45, 75].map((x, k) => <span key={k} className="game-bob absolute h-16 w-24 rounded-full bg-card/30" style={{ left: `${x}%`, top: `${20 + k * 25}%`, animationDelay: `${k * 0.7}s` }} />)}
+        {q.options.map((option, i) => (
+          <button key={`${index}-${i}`} onClick={() => pick(i)} disabled={jump !== null}
+            className={`game-bob absolute top-10 flex h-28 w-28 -translate-x-1/2 items-center justify-center rounded-full border-4 border-foreground/30 bg-leaf p-2 text-center text-base font-bold text-foreground shadow-lg transition-transform hover:scale-110 sm:h-32 sm:w-32 sm:text-lg ${jump === i && !right ? "game-shake bg-destructive" : ""}`}
+            style={{ left: `${PAD_X[i]}%`, animationDelay: `${i * 0.4}s` }}>
+            <span className="absolute -top-3 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-sm text-primary-foreground">{"ABC"[i]}</span>
+            {option}
+          </button>
+        ))}
+        <div className="absolute bottom-2 flex h-28 w-28 -translate-x-1/2 items-center justify-center rounded-full bg-leaf/80 transition-all duration-700 ease-out sm:h-32 sm:w-32"
+          style={{ left: `${jump === null ? 50 : PAD_X[jump]}%`, bottom: jump === null ? "0.5rem" : "15rem" }}>
+          <div className="scale-75"><GameCharacter character={game.character} happy={right} /></div>
+        </div>
+      </div>
+      <p className="min-h-7 text-center font-semibold text-primary" aria-live="polite">{feedback}</p>
+    </div>
+  );
+}
+
+const STARS = Array.from({ length: 24 }, (_, i) => ({ left: (i * 37) % 100, delay: (i * 0.37) % 3, dur: 1.5 + ((i * 7) % 10) / 5 }));
+
+function AsterGame({ game, sound, language, difficulty, onFinish }: Props & { difficulty: Difficulty }) {
+  const qs = game.questions;
+  const [index, setIndex] = useState(0);
+  const [ships, setShips] = useState(5);
+  const [score, setScore] = useState(0);
+  const [lane, setLane] = useState(1);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const duration = difficulty === "easy" ? 14 : difficulty === "medium" ? 11 : 8;
+  const q = qs[index];
+  if (!q) return null;
+
+  function resolve(i: number | null) {
+    if (picked !== null || !q) return;
+    if (i !== null) setLane(i);
+    setPicked(i ?? -1);
+    const ok = i === q.answerIndex;
+    sound.play(ok ? "correct" : "wrong");
+    const newShips = Math.max(0, ships + (ok ? 2 : -2)); const newScore = score + (ok ? 100 : 0);
+    setShips(newShips); setScore(newScore);
+    setFeedback(ok ? "Correct! +2 ships" : i === null ? `Too slow! −2 · ${q.explanation}` : `Wrong! −2 · ${q.explanation}`);
+    setTimeout(() => {
+      setPicked(null); setFeedback("");
+      if (newShips <= 0 || index + 1 >= qs.length) onFinish(newScore, qs.length * 100); else setIndex(index + 1);
+    }, ok ? 1100 : 2200);
+  }
+  return (
+    <div className="space-y-3">
+      <Prompt text={q.question} language={language} />
+      <div className="relative h-96 overflow-hidden rounded-lg bg-foreground text-background">
+        {STARS.map((s, k) => <span key={k} className="game-star absolute top-0 h-3 w-0.5 rounded bg-background/60" style={{ left: `${s.left}%`, animationDelay: `${s.delay}s`, animationDuration: `${s.dur}s` }} />)}
+        <div className="absolute left-3 top-3 z-10 rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground">🚀 {ships} · ⭐ {score} · {index + 1}/{qs.length}</div>
+        <div key={index} className="game-drop absolute inset-x-0 top-12 grid grid-cols-3 gap-2 px-2" style={{ animationDuration: `${duration}s` }} onAnimationEnd={() => resolve(null)}>
+          {q.options.map((option, i) => (
+            <button key={i} onClick={() => resolve(i)} onMouseEnter={() => picked === null && setLane(i)} disabled={picked !== null}
+              className={`flex h-24 items-center justify-center rounded-lg border-4 p-2 text-center text-base font-bold shadow-lg transition-colors sm:text-xl ${picked === null ? "border-primary bg-card text-foreground hover:bg-secondary" : i === q.answerIndex ? "border-primary bg-primary text-primary-foreground" : picked === i ? "border-destructive bg-destructive text-destructive-foreground" : "bg-card/50 text-foreground"}`}>
+              {option}
+            </button>
           ))}
         </div>
-      )}
-
-      {mode === "match" && current?.pairs && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-3">{current.pairs.map((pair, index) => (
-            <Button key={index} variant={selected === pair.left ? "default" : "outline"} disabled={matched.includes(index)}
-              className="h-16 w-full whitespace-normal px-2 text-center text-base" onClick={() => { sound.play("tap"); setSelected(pair.left); setFeedback(""); }}>
-              {matched.includes(index) ? "✓ " : ""}{pair.left}
-            </Button>
-          ))}</div>
-          <div className="space-y-3">{choices.map((answer, index) => (
-            <Button key={index} variant="secondary" disabled={matched.some((m) => current.pairs?.[m]?.right === answer)}
-              className="h-16 w-full whitespace-normal px-2 text-center text-base" onClick={() => {
-                if (!selected) { setFeedback("Choose a piece on the left first."); return; }
-                const pairIndex = current.pairs?.findIndex((p) => p.left === selected) ?? -1;
-                const right = current.pairs?.[pairIndex]?.right === answer;
-                sound.play(right ? "correct" : "wrong");
-                const updatedMistakes = mistakes + (right ? 0 : 1);
-                setMistakes(updatedMistakes); setSelected(null);
-                if (!right) { setFeedback("Try another match!"); return; }
-                const updatedMatched = [...matched, pairIndex];
-                setMatched(updatedMatched); setFeedback("Nice match!");
-                if (updatedMatched.length === 4) {
-                  const updatedScore = score + Math.max(40, 100 - updatedMistakes * 15);
-                  setScore(updatedScore);
-                  advanceTimer.current = setTimeout(() => nextRound(updatedScore), 900);
-                }
-              }}>{matched.some((m) => current.pairs?.[m]?.right === answer) ? "✓ " : ""}{answer}</Button>
-          ))}</div>
+        <div className="absolute bottom-3 -translate-x-1/2 text-5xl transition-all duration-300" style={{ left: `${16.6 + lane * 33.3}%` }} aria-hidden="true">
+          <span className={picked !== null && picked !== q.answerIndex ? "inline-block game-shake" : "inline-block"}>🚀</span>
         </div>
-      )}
-
-      {mode === "sequence" && current?.items && (
-        <div className="space-y-4">
-          <div className="flex min-h-16 flex-wrap items-center gap-2 rounded-lg border-2 border-dashed border-primary p-3" aria-label="Your order">
-            {current.items.slice(0, step).map((item, index) => <span key={index} className="rounded-md bg-primary px-3 py-2 font-bold text-primary-foreground">{index + 1}. {item}</span>)}
-            {step === 0 && <span className="text-muted-foreground">Your order…</span>}
-          </div>
-          <div className="grid grid-cols-2 gap-3">{choices.map((item, index) => (
-            <Button key={index} variant="secondary" disabled={(current.items?.indexOf(item) ?? -1) < step}
-              className="h-20 w-full whitespace-normal px-2 text-center text-base" onClick={() => {
-                if (item !== current.items?.[step]) { sound.play("wrong"); setMistakes((n) => n + 1); setFeedback("Not yet — try another piece!"); return; }
-                sound.play("correct");
-                setStep(step + 1); setFeedback("That's right!");
-                if (step + 1 === 4) {
-                  const updatedScore = score + Math.max(40, 100 - mistakes * 15);
-                  setScore(updatedScore);
-                  advanceTimer.current = setTimeout(() => nextRound(updatedScore), 900);
-                }
-              }}>{item}</Button>
-          ))}</div>
-        </div>
-      )}
-      <p className="min-h-7 text-center font-semibold text-primary" aria-live="polite">{feedback}</p>
+        {feedback && <p className="absolute inset-x-4 bottom-20 z-10 rounded-lg bg-card p-2 text-center font-bold text-foreground" aria-live="polite">{feedback}</p>}
+      </div>
+      <div className="grid grid-cols-3 gap-2 sm:hidden">{["◀", "Fire", "▶"].map((label, k) => (
+        <Button key={k} variant="secondary" disabled={picked !== null} onClick={() => k === 1 ? resolve(lane) : setLane((l) => Math.max(0, Math.min(2, l + (k === 0 ? -1 : 1))))}>{label}</Button>
+      ))}</div>
     </div>
   );
 }
