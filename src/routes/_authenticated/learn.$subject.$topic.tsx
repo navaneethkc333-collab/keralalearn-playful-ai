@@ -52,7 +52,8 @@ function TopicPage() {
     onError: (e) => toast.error((e as Error).message),
   });
   if (!p || !s) return <p className="text-muted-foreground">Loading…</p>;
-  const lang = (p.language === "ml" ? "ml" : "en") as "en" | "ml";
+  // Malayalam subject is always taught in Malayalam; other subjects follow the student's language setting.
+  const lang = (s.id === "malayalam" || p.language === "ml" ? "ml" : "en") as "en" | "ml";
 
   // Adaptive difficulty from last attempt on this topic
   const last = attempts.find((a) => a.topic === topic);
