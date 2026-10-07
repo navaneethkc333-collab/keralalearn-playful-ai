@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, Star, Flame, BookOpen, Palette, ClipboardCheck, BarChart3 } from "lucide-react";
+import { LogOut, Star, Flame, BookOpen, Palette, ClipboardCheck, BarChart3, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useProfile, levelFromPoints } from "@/hooks/useProfile";
@@ -51,6 +51,9 @@ export function AppHeader() {
                 </span>
               </>
             )}
+            <Button variant="ghost" size="icon" aria-label="Settings" asChild>
+              <Link to="/settings" activeProps={{ className: "bg-primary/10 text-primary" }}><Settings className="h-4 w-4" /></Link>
+            </Button>
             <Button
               variant="ghost"
               size="icon"
